@@ -58,14 +58,13 @@ clawdbot plugins install -l ./dingtalk-moltbot-connector
       "enabled": true,
       "clientId": "dingxxxxxxxxx",       // 钉钉 AppKey
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
-      "enableMediaUpload": true,          // 可选：图片上传（默认开启）
-      "systemPrompt": "",                 // 可选：自定义 system prompt
+      "gatewayToken": "",                 // 可选：Gateway 认证 token
     }
   },
   "gateway": {
     "http": {
-       "endpoints": {
-          "chatCompletions": {
+      "endpoints": {
+        "chatCompletions": {
           "enabled": true
         }
       }
@@ -145,6 +144,7 @@ connector.start()
 |--------|----------|------|
 | `clientId` / `dingtalk_client_id` | `DINGTALK_CLIENT_ID` | 钉钉 AppKey |
 | `clientSecret` / `dingtalk_client_secret` | `DINGTALK_CLIENT_SECRET` | 钉钉 AppSecret |
+| `gatewayToken` / `gateway_token` | `MOLTBOT_GATEWAY_TOKEN` | Gateway 认证 token（可选） |
 
 ## 项目结构
 
