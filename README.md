@@ -79,7 +79,6 @@ clawdbot gateway restart
 
 ```bash
 clawdbot plugins list               # 确认 dingtalk-connector 已加载
-clawdbot gateway rpc dingtalk.probe  # 检查连通性
 ```
 
 ---
@@ -103,23 +102,6 @@ pip install -e .
 
 # 交互式启动
 python examples/quick_start.py
-```
-
-### 2. 其他启动方式
-
-**环境变量：**
-
-```bash
-export DINGTALK_CLIENT_ID="dingxxxxxxxxx"
-export DINGTALK_CLIENT_SECRET="your_secret_here"
-
-python -c "from dingtalk_moltbot_connector import MoltbotConnector; MoltbotConnector.from_env().start()"
-```
-
-**CLI：**
-
-```bash
-dingtalk-moltbot --gateway-url http://127.0.0.1:18789
 ```
 
 **代码集成：**
