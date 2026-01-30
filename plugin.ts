@@ -474,13 +474,12 @@ interface GatewayOptions {
   systemPrompts: string[];
   sessionKey: string;
   gatewayAuth?: string;  // token 或 password，都用 Bearer 格式
+  gatewayUrl: string;    // Gateway 完整地址
   log?: any;
 }
 
 async function* streamFromGateway(options: GatewayOptions): AsyncGenerator<string, void, unknown> {
-  const { userContent, systemPrompts, sessionKey, gatewayAuth, log } = options;
-  const rt = getRuntime();
-  const gatewayUrl = `http://127.0.0.1:${rt.gateway?.port || 18789}/v1/chat/completions`;
+  const { userContent, systemPrompts, sessionKey, gatewayAuth, gatewayUrl, log } = options;
 
   const messages: any[] = [];
   for (const prompt of systemPrompts) {
@@ -666,6 +665,11 @@ async function handleDingTalkMessage(params: {
   // Gateway 认证：优先使用 token，其次 password
   const gatewayAuth = dingtalkConfig.gatewayToken || dingtalkConfig.gatewayPassword || '';
 
+  // Gateway URL：优先使用配置的 gatewayUrl，其次从 cfg.gateway.port 构建
+  const gatewayPort = (cfg.gateway as any)?.port || 18789;
+  const gatewayUrl = dingtalkConfig.gatewayUrl || `http://127.0.0.1:${gatewayPort}/v1/chat/completions`;
+  log?.info?.(`[DingTalk][Gateway] 使用 URL: ${gatewayUrl}`);
+
   // 构建 system prompts & 获取 oapi token（用于图片后处理）
   const systemPrompts: string[] = [];
   let oapiToken: string | null = null;
@@ -704,6 +708,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey,
         gatewayAuth,
+        gatewayUrl,
         log,
       })) {
         accumulated += chunk;
@@ -753,6 +758,7 @@ async function handleDingTalkMessage(params: {
         systemPrompts,
         sessionKey,
         gatewayAuth,
+        gatewayUrl,
         log,
       })) {
         fullResponse += chunk;
@@ -813,6 +819,7 @@ const dingtalkPlugin = {
         groupPolicy: { type: 'string', enum: ['open', 'allowlist'], default: 'open' },
         gatewayToken: { type: 'string', default: '', description: 'Gateway auth token (Bearer)' },
         gatewayPassword: { type: 'string', default: '', description: 'Gateway auth password (alternative to token)' },
+        gatewayUrl: { type: 'string', default: '', description: 'Gateway URL (e.g. http://127.0.0.1:32189/v1/chat/completions)' },
         sessionTimeout: { type: 'number', default: 1800000, description: 'Session timeout in ms (default 30min)' },
         debug: { type: 'boolean', default: false },
       },

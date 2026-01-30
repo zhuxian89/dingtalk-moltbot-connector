@@ -70,6 +70,7 @@ clawdbot plugins install -l ./dingtalk-moltbot-connector
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
       "gatewayToken": "",                 // 可选：Gateway 认证 token
       "gatewayPassword": "",              // 可选：Gateway 认证 password（与 token 二选一）
+      "gatewayUrl": "",                   // 可选：Gateway URL，默认从 gateway.port 读取
       "sessionTimeout": 1800000,          // 可选：会话超时(ms)，默认 30 分钟
     }
   },
@@ -158,6 +159,7 @@ connector.start()
 | `clientSecret` / `dingtalk_client_secret` | `DINGTALK_CLIENT_SECRET` | 钉钉 AppSecret |
 | `gatewayToken` / `gateway_token` | `MOLTBOT_GATEWAY_TOKEN` | Gateway 认证 token（可选） |
 | `gatewayPassword` | — | Gateway 认证 password（可选，与 token 二选一） |
+| `gatewayUrl` | — | Gateway 完整 URL（可选，默认从 gateway.port 构建） |
 | `sessionTimeout` | — | 会话超时时间，单位毫秒（默认 1800000 = 30分钟） |
 
 ## 会话命令
