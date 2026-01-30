@@ -20,65 +20,6 @@ function getRuntime(): PluginRuntime {
   return runtime;
 }
 
-// ============ Session 管理 ============
-
-/** 用户会话状态：记录最后活跃时间和当前 session 标识 */
-interface UserSession {
-  lastActivity: number;
-  sessionId: string;  // 格式: dingtalk:<senderId> 或 dingtalk:<senderId>:<timestamp>
-}
-
-/** 用户会话缓存 Map<senderId, UserSession> */
-const userSessions = new Map<string, UserSession>();
-
-/** 新会话触发命令 */
-const NEW_SESSION_COMMANDS = ['/new', '/reset', '/clear', '新会话', '重新开始', '清空对话'];
-
-/** 检查消息是否是新会话命令 */
-function isNewSessionCommand(text: string): boolean {
-  const trimmed = text.trim().toLowerCase();
-  return NEW_SESSION_COMMANDS.some(cmd => trimmed === cmd.toLowerCase());
-}
-
-/** 获取或创建用户 session key */
-function getSessionKey(
-  senderId: string,
-  forceNew: boolean,
-  sessionTimeout: number,
-  log?: any,
-): { sessionKey: string; isNew: boolean } {
-  const now = Date.now();
-  const existing = userSessions.get(senderId);
-
-  // 强制新会话
-  if (forceNew) {
-    const sessionId = `dingtalk:${senderId}:${now}`;
-    userSessions.set(senderId, { lastActivity: now, sessionId });
-    log?.info?.(`[DingTalk][Session] 用户主动开启新会话: ${senderId}`);
-    return { sessionKey: sessionId, isNew: true };
-  }
-
-  // 检查超时
-  if (existing) {
-    const elapsed = now - existing.lastActivity;
-    if (elapsed > sessionTimeout) {
-      const sessionId = `dingtalk:${senderId}:${now}`;
-      userSessions.set(senderId, { lastActivity: now, sessionId });
-      log?.info?.(`[DingTalk][Session] 会话超时(${Math.round(elapsed / 60000)}分钟)，自动开启新会话: ${senderId}`);
-      return { sessionKey: sessionId, isNew: true };
-    }
-    // 更新活跃时间
-    existing.lastActivity = now;
-    return { sessionKey: existing.sessionId, isNew: false };
-  }
-
-  // 首次会话
-  const sessionId = `dingtalk:${senderId}`;
-  userSessions.set(senderId, { lastActivity: now, sessionId });
-  log?.info?.(`[DingTalk][Session] 新用户首次会话: ${senderId}`);
-  return { sessionKey: sessionId, isNew: false };
-}
-
 // ============ Access Token 缓存 ============
 
 let accessToken: string | null = null;
@@ -123,26 +64,6 @@ async function getOapiAccessToken(config: any): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-function buildMediaSystemPrompt(): string {
-  return `## 钉钉图片显示规则
-
-你正在钉钉中与用户对话。显示图片时，直接使用本地文件路径，系统会自动上传处理。
-
-### 正确方式
-\`\`\`markdown
-![描述](file:///path/to/image.jpg)
-![描述](/tmp/screenshot.png)
-![描述](/Users/xxx/photo.jpg)
-\`\`\`
-
-### 禁止
-- 不要自己执行 curl 上传
-- 不要猜测或构造 URL
-- 不要使用 https://oapi.dingtalk.com/... 这类地址
-
-直接输出本地路径即可，系统会自动上传到钉钉。`;
 }
 
 // ============ 图片后处理：自动上传本地图片到钉钉 ============
@@ -467,78 +388,6 @@ async function finishAICard(
   }
 }
 
-// ============ Gateway SSE Streaming ============
-
-interface GatewayOptions {
-  userContent: string;
-  systemPrompts: string[];
-  sessionKey: string;
-  gatewayAuth?: string;  // token 或 password，都用 Bearer 格式
-  gatewayUrl: string;    // Gateway 完整地址
-  log?: any;
-}
-
-async function* streamFromGateway(options: GatewayOptions): AsyncGenerator<string, void, unknown> {
-  const { userContent, systemPrompts, sessionKey, gatewayAuth, gatewayUrl, log } = options;
-
-  const messages: any[] = [];
-  for (const prompt of systemPrompts) {
-    messages.push({ role: 'system', content: prompt });
-  }
-  messages.push({ role: 'user', content: userContent });
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (gatewayAuth) {
-    headers['Authorization'] = `Bearer ${gatewayAuth}`;
-  }
-
-  log?.info?.(`[DingTalk][Gateway] POST ${gatewayUrl}, session=${sessionKey}, messages=${messages.length}`);
-
-  const response = await fetch(gatewayUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: 'default',
-      messages,
-      stream: true,
-      user: sessionKey,  // 用于 session 持久化
-    }),
-  });
-
-  log?.info?.(`[DingTalk][Gateway] 响应 status=${response.status}, ok=${response.ok}, hasBody=${!!response.body}`);
-
-  if (!response.ok || !response.body) {
-    const errText = response.body ? await response.text() : '(no body)';
-    log?.error?.(`[DingTalk][Gateway] 错误响应: ${errText}`);
-    throw new Error(`Gateway error: ${response.status} - ${errText}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') return;
-
-      try {
-        const chunk = JSON.parse(data);
-        const content = chunk.choices?.[0]?.delta?.content;
-        if (content) yield content;
-      } catch {}
-    }
-  }
-}
-
 // ============ 消息处理 ============
 
 function extractMessageContent(data: any): { text: string; messageType: string } {
@@ -622,7 +471,7 @@ async function sendMessage(
   return sendTextMessage(config, sessionWebhook, text, options);
 }
 
-// ============ 核心消息处理 (AI Card Streaming) ============
+// ============ 核心消息处理 (SDK Dispatch 模式) ============
 
 async function handleDingTalkMessage(params: {
   cfg: ClawdbotConfig;
@@ -641,140 +490,139 @@ async function handleDingTalkMessage(params: {
   const isDirect = data.conversationType === '1';
   const senderId = data.senderStaffId || data.senderId;
   const senderName = data.senderNick || 'Unknown';
+  const groupId = data.conversationId;
+  const groupName = data.conversationTitle || 'Group';
 
   log?.info?.(`[DingTalk] 收到消息: from=${senderName} text="${content.text.slice(0, 50)}..."`);
 
-  // ===== Session 管理 =====
-  const sessionTimeout = dingtalkConfig.sessionTimeout ?? 1800000; // 默认 30 分钟
-  const forceNewSession = isNewSessionCommand(content.text);
+  // ===== 路由解析 =====
+  const route = rt.channel.routing.resolveAgentRoute({
+    cfg,
+    channel: 'dingtalk-ai',
+    accountId,
+    peer: { kind: isDirect ? 'dm' : 'group', id: isDirect ? senderId : groupId },
+  });
 
-  // 如果是新会话命令，直接回复确认消息
-  if (forceNewSession) {
-    const { sessionKey } = getSessionKey(senderId, true, sessionTimeout, log);
-    await sendMessage(dingtalkConfig, sessionWebhook, '✨ 已开启新会话，之前的对话已清空。', {
-      atUserId: !isDirect ? senderId : null,
-    });
-    log?.info?.(`[DingTalk] 用户请求新会话: ${senderId}, newKey=${sessionKey}`);
-    return;
-  }
+  // ===== 构建 inbound context =====
+  const storePath = rt.channel.session.resolveStorePath((cfg.session as any)?.store, { agentId: route.agentId });
+  const envelopeOptions = rt.channel.reply.resolveEnvelopeFormatOptions(cfg);
+  const previousTimestamp = rt.channel.session.readSessionUpdatedAt({ storePath, sessionKey: route.sessionKey });
 
-  // 获取或创建 session
-  const { sessionKey, isNew } = getSessionKey(senderId, false, sessionTimeout, log);
-  log?.info?.(`[DingTalk][Session] key=${sessionKey}, isNew=${isNew}`);
+  const fromLabel = isDirect ? `${senderName} (${senderId})` : `${groupName} - ${senderName}`;
+  const body = rt.channel.reply.formatInboundEnvelope({
+    channel: 'DingTalk',
+    from: fromLabel,
+    timestamp: data.createAt,
+    body: content.text,
+    chatType: isDirect ? 'direct' : 'group',
+    sender: { name: senderName, id: senderId },
+    previousTimestamp,
+    envelope: envelopeOptions,
+  });
 
-  // Gateway 认证：优先使用 token，其次 password
-  const gatewayAuth = dingtalkConfig.gatewayToken || dingtalkConfig.gatewayPassword || '';
+  const to = isDirect ? senderId : groupId;
+  const ctx = rt.channel.reply.finalizeInboundContext({
+    Body: body,
+    RawBody: content.text,
+    CommandBody: content.text,  // 透传给 SDK，不拦截命令
+    From: to,
+    To: to,
+    SessionKey: route.sessionKey,
+    AccountId: accountId,
+    ChatType: isDirect ? 'direct' : 'group',
+    ConversationLabel: fromLabel,
+    GroupSubject: isDirect ? undefined : groupName,
+    SenderName: senderName,
+    SenderId: senderId,
+    Provider: 'dingtalk-ai',
+    Surface: 'dingtalk-ai',
+    MessageSid: data.msgId,
+    Timestamp: data.createAt,
+    CommandAuthorized: true,
+    OriginatingChannel: 'dingtalk-ai',
+    OriginatingTo: to,
+  });
 
-  // Gateway URL：优先使用配置的 gatewayUrl，其次从 cfg.gateway.port 构建
-  const gatewayPort = (cfg.gateway as any)?.port || 18789;
-  const gatewayUrl = dingtalkConfig.gatewayUrl || `http://127.0.0.1:${gatewayPort}/v1/chat/completions`;
-  log?.info?.(`[DingTalk][Gateway] 使用 URL: ${gatewayUrl}`);
+  // 记录 inbound session
+  await rt.channel.session.recordInboundSession({
+    storePath,
+    sessionKey: ctx.SessionKey || route.sessionKey,
+    ctx,
+    updateLastRoute: { sessionKey: route.mainSessionKey, channel: 'dingtalk-ai', to, accountId },
+  });
 
-  // 构建 system prompts & 获取 oapi token（用于图片后处理）
-  const systemPrompts: string[] = [];
+  // ===== 准备图片后处理 =====
   let oapiToken: string | null = null;
-
   if (dingtalkConfig.enableMediaUpload !== false) {
-    // 添加图片使用提示（告诉 LLM 直接输出本地路径）
-    systemPrompts.push(buildMediaSystemPrompt());
-    // 获取 token 用于后处理上传
     oapiToken = await getOapiAccessToken(dingtalkConfig);
     log?.info?.(`[DingTalk][Media] oapiToken 获取${oapiToken ? '成功' : '失败'}`);
-  } else {
-    log?.info?.(`[DingTalk][Media] enableMediaUpload=false，跳过`);
   }
 
-  // 自定义 system prompt
-  if (dingtalkConfig.systemPrompt) {
-    systemPrompts.push(dingtalkConfig.systemPrompt);
-  }
-
-  // 是否使用 AI Card（默认 true）
+  // ===== 是否使用 AI Card =====
   const useAICard = dingtalkConfig.useAICard !== false;
+  let card: AICardInstance | null = null;
+  let accumulated = '';
+  let lastUpdateTime = 0;
+  const updateInterval = 300;
 
-  // 尝试创建 AI Card（如果启用）
-  const card = useAICard ? await createAICard(dingtalkConfig, data, log) : null;
+  if (useAICard) {
+    card = await createAICard(dingtalkConfig, data, log);
+    if (card) {
+      log?.info?.(`[DingTalk] AI Card 创建成功: ${card.cardInstanceId}`);
+    }
+  }
 
-  if (card) {
-    // ===== AI Card 流式模式 =====
-    log?.info?.(`[DingTalk] AI Card 创建成功: ${card.cardInstanceId}`);
+  // ===== 创建 dispatcher =====
+  const { dispatcher, replyOptions } = rt.channel.reply.createReplyDispatcherWithTyping({
+    responsePrefix: '',
+    deliver: async (payload: any) => {
+      try {
+        const textToSend = payload.markdown || payload.text;
+        if (!textToSend) return { ok: true };
 
-    let accumulated = '';
-    let lastUpdateTime = 0;
-    const updateInterval = 300; // 最小更新间隔 ms
-    let chunkCount = 0;
+        // 图片后处理
+        const processedText = await processLocalImages(textToSend, oapiToken, log);
 
-    try {
-      log?.info?.(`[DingTalk] 开始请求 Gateway 流式接口...`);
-      for await (const chunk of streamFromGateway({
-        userContent: content.text,
-        systemPrompts,
-        sessionKey,
-        gatewayAuth,
-        gatewayUrl,
-        log,
-      })) {
-        accumulated += chunk;
-        chunkCount++;
-
-        if (chunkCount <= 3) {
-          log?.info?.(`[DingTalk] Gateway chunk #${chunkCount}: "${chunk.slice(0, 50)}..." (accumulated=${accumulated.length})`);
+        if (card) {
+          // AI Card 流式更新
+          accumulated = processedText;
+          const now = Date.now();
+          if (now - lastUpdateTime >= updateInterval) {
+            await streamAICard(card, accumulated, false, log);
+            lastUpdateTime = now;
+          }
+        } else {
+          // 普通消息
+          await sendMessage(dingtalkConfig, sessionWebhook, processedText, {
+            atUserId: !isDirect ? senderId : null,
+            useMarkdown: true,
+          });
         }
-
-        // 节流更新，避免过于频繁
-        const now = Date.now();
-        if (now - lastUpdateTime >= updateInterval) {
-          await streamAICard(card, accumulated, false, log);
-          lastUpdateTime = now;
-        }
+        return { ok: true };
+      } catch (err: any) {
+        log?.error?.(`[DingTalk] 发送消息失败: ${err.message}`);
+        return { ok: false, error: err.message };
       }
+    },
+  });
 
-      log?.info?.(`[DingTalk] Gateway 流完成，共 ${chunkCount} chunks, ${accumulated.length} 字符`);
+  // ===== 透传给 SDK =====
+  try {
+    await rt.channel.reply.dispatchReplyFromConfig({ ctx, cfg, dispatcher, replyOptions });
 
-      // 后处理：上传本地图片到钉钉，替换 file:// 路径为 media_id
-      log?.info?.(`[DingTalk][Media] 开始后处理，oapiToken=${oapiToken ? '有' : '无'}，内容片段="${accumulated.slice(0, 200)}..."`);
-      accumulated = await processLocalImages(accumulated, oapiToken, log);
-
-      // 完成
+    // 完成 AI Card
+    if (card && accumulated) {
       await finishAICard(card, accumulated, log);
-      log?.info?.(`[DingTalk] 流式响应完成，共 ${accumulated.length} 字符`);
-
-    } catch (err: any) {
-      log?.error?.(`[DingTalk] Gateway 调用失败: ${err.message}`);
-      log?.error?.(`[DingTalk] 错误详情: ${err.stack}`);
+      log?.info?.(`[DingTalk] AI Card 完成，共 ${accumulated.length} 字符`);
+    }
+  } catch (err: any) {
+    log?.error?.(`[DingTalk] SDK dispatch 失败: ${err.message}`);
+    if (card) {
       accumulated += `\n\n⚠️ 响应中断: ${err.message}`;
       try {
         await finishAICard(card, accumulated, log);
-      } catch (finishErr: any) {
-        log?.error?.(`[DingTalk] 错误恢复 finish 也失败: ${finishErr.message}`);
-      }
-    }
-
-  } else {
-    // ===== 降级：普通消息模式 =====
-    log?.warn?.(`[DingTalk] AI Card 创建失败，降级为普通消息`);
-
-    let fullResponse = '';
-    try {
-      for await (const chunk of streamFromGateway({
-        userContent: content.text,
-        systemPrompts,
-        sessionKey,
-        gatewayAuth,
-        gatewayUrl,
-        log,
-      })) {
-        fullResponse += chunk;
-      }
-
-      await sendMessage(dingtalkConfig, sessionWebhook, fullResponse || '（无响应）', {
-        atUserId: !isDirect ? senderId : null,
-        useMarkdown: true,
-      });
-      log?.info?.(`[DingTalk] 普通消息回复完成，共 ${fullResponse.length} 字符`);
-
-    } catch (err: any) {
-      log?.error?.(`[DingTalk] Gateway 调用失败: ${err.message}`);
+      } catch {}
+    } else {
       await sendMessage(dingtalkConfig, sessionWebhook, `抱歉，处理请求时出错: ${err.message}`, {
         atUserId: !isDirect ? senderId : null,
       });
@@ -816,15 +664,10 @@ const dingtalkPlugin = {
         clientId: { type: 'string', description: 'DingTalk App Key (Client ID)' },
         clientSecret: { type: 'string', description: 'DingTalk App Secret (Client Secret)' },
         useAICard: { type: 'boolean', default: true, description: 'Use AI Card streaming (false for plain text)' },
-        enableMediaUpload: { type: 'boolean', default: true, description: 'Enable media upload prompt injection' },
-        systemPrompt: { type: 'string', default: '', description: 'Custom system prompt' },
+        enableMediaUpload: { type: 'boolean', default: true, description: 'Enable media upload for local image paths' },
         dmPolicy: { type: 'string', enum: ['open', 'pairing', 'allowlist'], default: 'open' },
         allowFrom: { type: 'array', items: { type: 'string' }, description: 'Allowed sender IDs' },
         groupPolicy: { type: 'string', enum: ['open', 'allowlist'], default: 'open' },
-        gatewayToken: { type: 'string', default: '', description: 'Gateway auth token (Bearer)' },
-        gatewayPassword: { type: 'string', default: '', description: 'Gateway auth password (alternative to token)' },
-        gatewayUrl: { type: 'string', default: '', description: 'Gateway URL (e.g. http://127.0.0.1:32189/v1/chat/completions)' },
-        sessionTimeout: { type: 'number', default: 1800000, description: 'Session timeout in ms (default 30min)' },
         debug: { type: 'boolean', default: false },
       },
       required: ['clientId', 'clientSecret'],

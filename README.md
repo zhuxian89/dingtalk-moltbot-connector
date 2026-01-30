@@ -69,10 +69,6 @@ clawdbot plugins install -l ./dingtalk-moltbot-connector
       "clientId": "dingxxxxxxxxx",       // 钉钉 AppKey
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
       "useAICard": true,                  // 可选：是否使用 AI Card 流式卡片（false 则用纯文本）
-      "gatewayToken": "",                 // 可选：Gateway 认证 token
-      "gatewayPassword": "",              // 可选：Gateway 认证 password（与 token 二选一）
-      "gatewayUrl": "",                   // 可选：Gateway URL，默认从 gateway.port 读取
-      "sessionTimeout": 1800000,          // 可选：会话超时(ms)，默认 30 分钟
     }
   },
   "gateway": { // gateway通常是已有的节点，配置时注意把http部分追加到已有节点下
@@ -159,17 +155,18 @@ connector.start()
 | `clientId` / `dingtalk_client_id` | `DINGTALK_CLIENT_ID` | 钉钉 AppKey |
 | `clientSecret` / `dingtalk_client_secret` | `DINGTALK_CLIENT_SECRET` | 钉钉 AppSecret |
 | `useAICard` | — | 是否使用 AI Card 流式卡片（默认 true，false 则用纯文本） |
-| `gatewayToken` / `gateway_token` | `MOLTBOT_GATEWAY_TOKEN` | Gateway 认证 token（可选） |
-| `gatewayPassword` | — | Gateway 认证 password（可选，与 token 二选一） |
-| `gatewayUrl` | — | Gateway 完整 URL（可选，默认从 gateway.port 构建） |
-| `sessionTimeout` | — | 会话超时时间，单位毫秒（默认 1800000 = 30分钟） |
+| `enableMediaUpload` | — | 是否启用本地图片自动上传（默认 true） |
+| `dmPolicy` | — | 私聊策略：open / pairing / allowlist |
+| `groupPolicy` | — | 群聊策略：open / allowlist |
 
-## 会话命令
+## 支持的命令
 
-用户可以发送以下命令开启新会话（清空对话历史）：
+消息透传给 Clawdbot SDK 处理，支持所有 SDK 命令：
 
-- `/new`、`/reset`、`/clear`
-- `新会话`、`重新开始`、`清空对话`
+- `/new`、`/reset`、`/clear` - 新会话
+- `/stop` - 停止响应
+- `/think`、`/reason` - 深度思考模式（如果 Gateway 支持）
+- 其他 SDK 命令...
 
 ## 项目结构
 
