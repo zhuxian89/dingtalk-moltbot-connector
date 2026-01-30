@@ -79,9 +79,6 @@ async function getOapiAccessToken(config: any): Promise<string | null> {
  */
 const LOCAL_IMAGE_RE = /!\[([^\]]*)\]\(((?:file:\/\/\/|MEDIA:|attachment:\/\/\/)[^\s)]+|\/(?:tmp|var|private|Users)[^\s)]+)\)/g;
 
-/** 图片文件扩展名 */
-const IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|bmp|webp|tiff|svg)$/i;
-
 /**
  * 匹配纯文本中的本地图片路径（不在 markdown 图片语法中）：
  * - `/var/folders/.../screenshot.png`
