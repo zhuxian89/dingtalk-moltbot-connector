@@ -16,12 +16,12 @@
   },
   "clawdbot": {
     "extensions": ["./plugin.ts"],
-    "channels": ["dingtalk"],
+    "channels": ["dingtalk-ai"],
     "installDependencies": true
   },
   "moltbot": {
     "extensions": ["./plugin.ts"],
-    "channels": ["dingtalk"],
+    "channels": ["dingtalk-ai"],
     "installDependencies": true
   }
 }

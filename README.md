@@ -64,7 +64,7 @@ clawdbot plugins install -l ./dingtalk-moltbot-connector
 ```json5
 {
   "channels": {
-    "dingtalk": {
+    "dingtalk-ai": {
       "enabled": true,
       "clientId": "dingxxxxxxxxx",       // 钉钉 AppKey
       "clientSecret": "your_secret_here", // 钉钉 AppSecret

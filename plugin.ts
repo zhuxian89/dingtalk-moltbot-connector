@@ -11,7 +11,7 @@ import type { ClawdbotPluginApi, PluginRuntime, ClawdbotConfig } from 'clawdbot/
 
 // ============ 常量 ============
 
-export const id = 'dingtalk';
+export const id = 'dingtalk-ai';
 
 let runtime: PluginRuntime | null = null;
 
@@ -103,7 +103,7 @@ async function getAccessToken(config: any): Promise<string> {
 // ============ 配置工具 ============
 
 function getConfig(cfg: ClawdbotConfig) {
-  return (cfg?.channels as any)?.dingtalk || {};
+  return (cfg?.channels as any)?.['dingtalk-ai'] || {};
 }
 
 function isConfigured(cfg: ClawdbotConfig): boolean {
@@ -776,7 +776,7 @@ async function handleDingTalkMessage(params: {
 // ============ 插件定义 ============
 
 const meta = {
-  id: 'dingtalk',
+  id: 'dingtalk-ai',
   label: 'DingTalk',
   selectionLabel: 'DingTalk (钉钉)',
   docsPath: '/channels/dingtalk',
@@ -787,7 +787,7 @@ const meta = {
 };
 
 const dingtalkPlugin = {
-  id: 'dingtalk',
+  id: 'dingtalk-ai',
   meta,
   capabilities: {
     chatTypes: ['direct', 'group'],
@@ -797,7 +797,7 @@ const dingtalkPlugin = {
     nativeCommands: false,
     blockStreaming: false,
   },
-  reload: { configPrefixes: ['channels.dingtalk'] },
+  reload: { configPrefixes: ['channels.dingtalk-ai'] },
   configSchema: {
     schema: {
       type: 'object',
@@ -854,9 +854,9 @@ const dingtalkPlugin = {
     resolveDmPolicy: ({ account }: any) => ({
       policy: account.config?.dmPolicy || 'open',
       allowFrom: account.config?.allowFrom || [],
-      policyPath: 'channels.dingtalk.dmPolicy',
-      allowFromPath: 'channels.dingtalk.allowFrom',
-      approveHint: '使用 /allow dingtalk:<userId> 批准用户',
+      policyPath: 'channels.dingtalk-ai.dmPolicy',
+      allowFromPath: 'channels.dingtalk-ai.allowFrom',
+      approveHint: '使用 /allow dingtalk-ai:<userId> 批准用户',
       normalizeEntry: (raw: string) => raw.replace(/^(dingtalk|dd|ding):/i, ''),
     }),
   },
@@ -923,7 +923,7 @@ const dingtalkPlugin = {
       ctx.log?.info(`[${account.accountId}] 钉钉 Stream 客户端已连接`);
 
       const rt = getRuntime();
-      rt.channel.activity.record('dingtalk', account.accountId, 'start');
+      rt.channel.activity.record('dingtalk-ai', account.accountId, 'start');
 
       let stopped = false;
       if (abortSignal) {
@@ -931,7 +931,7 @@ const dingtalkPlugin = {
           if (stopped) return;
           stopped = true;
           ctx.log?.info(`[${account.accountId}] 停止钉钉 Stream 客户端...`);
-          rt.channel.activity.record('dingtalk', account.accountId, 'stop');
+          rt.channel.activity.record('dingtalk-ai', account.accountId, 'stop');
         });
       }
 
@@ -940,7 +940,7 @@ const dingtalkPlugin = {
           if (stopped) return;
           stopped = true;
           ctx.log?.info(`[${account.accountId}] 钉钉 Channel 已停止`);
-          rt.channel.activity.record('dingtalk', account.accountId, 'stop');
+          rt.channel.activity.record('dingtalk-ai', account.accountId, 'stop');
         },
       };
     },
