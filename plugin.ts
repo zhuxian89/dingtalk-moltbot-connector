@@ -747,8 +747,14 @@ const dingtalkPlugin = {
       });
 
       client.registerCallbackListener(TOPIC_ROBOT, async (res: any) => {
+        const messageId = res.headers?.messageId;
+
+        // 立即响应 Stream 回调，避免阻塞
+        if (messageId) {
+          client.socketCallBackResponse(messageId, { success: true });
+        }
+
         try {
-          const messageId = res.headers?.messageId;
           ctx.log?.info?.(`[DingTalk] 收到 Stream 回调, messageId=${messageId}, headers=${JSON.stringify(res.headers)}`);
           ctx.log?.info?.(`[DingTalk] 原始 data: ${typeof res.data === 'string' ? res.data.slice(0, 500) : JSON.stringify(res.data).slice(0, 500)}`);
           const data = JSON.parse(res.data);
@@ -761,12 +767,8 @@ const dingtalkPlugin = {
             log: ctx.log,
             dingtalkConfig: config,
           });
-
-          if (messageId) client.socketCallBackResponse(messageId, { success: true });
         } catch (error: any) {
           ctx.log?.error?.(`[DingTalk] 处理消息异常: ${error.message}`);
-          const messageId = res.headers?.messageId;
-          if (messageId) client.socketCallBackResponse(messageId, { success: false });
         }
       });
 
