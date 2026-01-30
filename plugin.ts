@@ -689,8 +689,11 @@ async function handleDingTalkMessage(params: {
     systemPrompts.push(dingtalkConfig.systemPrompt);
   }
 
-  // 尝试创建 AI Card
-  const card = await createAICard(dingtalkConfig, data, log);
+  // 是否使用 AI Card（默认 true）
+  const useAICard = dingtalkConfig.useAICard !== false;
+
+  // 尝试创建 AI Card（如果启用）
+  const card = useAICard ? await createAICard(dingtalkConfig, data, log) : null;
 
   if (card) {
     // ===== AI Card 流式模式 =====
@@ -812,6 +815,7 @@ const dingtalkPlugin = {
         enabled: { type: 'boolean', default: true },
         clientId: { type: 'string', description: 'DingTalk App Key (Client ID)' },
         clientSecret: { type: 'string', description: 'DingTalk App Secret (Client Secret)' },
+        useAICard: { type: 'boolean', default: true, description: 'Use AI Card streaming (false for plain text)' },
         enableMediaUpload: { type: 'boolean', default: true, description: 'Enable media upload prompt injection' },
         systemPrompt: { type: 'string', default: '', description: 'Custom system prompt' },
         dmPolicy: { type: 'string', enum: ['open', 'pairing', 'allowlist'], default: 'open' },
