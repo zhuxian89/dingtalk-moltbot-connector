@@ -562,7 +562,25 @@ async function handleDingTalkMessage(params: {
   let lastUpdateTime = 0;
   const updateInterval = 300;
 
-  if (useAICard) {
+  // ===== 发送"思考中"提示 =====
+  if (dingtalkConfig.showThinking !== false) {
+    try {
+      if (useAICard) {
+        card = await createAICard(dingtalkConfig, data, log);
+        if (card) {
+          log?.info?.(`[DingTalk] AI Card 创建成功: ${card.cardInstanceId}`);
+        }
+      } else {
+        // 文本模式：发送思考中提示
+        await sendMessage(dingtalkConfig, sessionWebhook, '🤔 思考中，请稍候...', {
+          atUserId: !isDirect ? senderId : null,
+        });
+      }
+    } catch (err: any) {
+      log?.debug?.(`[DingTalk] 思考中提示发送失败: ${err.message}`);
+    }
+  } else if (useAICard) {
+    // showThinking=false 但仍需创建卡片
     card = await createAICard(dingtalkConfig, data, log);
     if (card) {
       log?.info?.(`[DingTalk] AI Card 创建成功: ${card.cardInstanceId}`);
@@ -661,6 +679,7 @@ const dingtalkPlugin = {
         clientId: { type: 'string', description: 'DingTalk App Key (Client ID)' },
         clientSecret: { type: 'string', description: 'DingTalk App Secret (Client Secret)' },
         useAICard: { type: 'boolean', default: true, description: 'Use AI Card streaming (false for plain text)' },
+        showThinking: { type: 'boolean', default: true, description: 'Show thinking message before response' },
         enableMediaUpload: { type: 'boolean', default: true, description: 'Enable media upload for local image paths' },
         dmPolicy: { type: 'string', enum: ['open', 'pairing', 'allowlist'], default: 'open' },
         allowFrom: { type: 'array', items: { type: 'string' }, description: 'Allowed sender IDs' },
