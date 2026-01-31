@@ -50,7 +50,7 @@ graph LR
 # 远程安装
 clawdbot plugins install https://github.com/DingTalk-Real-AI/dingtalk-moltbot-connector.git
 # 后续插件升级
-clawdbot plugins update dingtalk-connector
+clawdbot plugins update dingtalk-ai
 
 # 或本地开发模式
 git clone https://github.com/DingTalk-Real-AI/dingtalk-moltbot-connector.git
@@ -96,7 +96,7 @@ clawdbot gateway restart
 验证：
 
 ```bash
-clawdbot plugins list               # 确认 dingtalk-connector 已加载
+clawdbot plugins list               # 确认 dingtalk-ai 已加载
 ```
 
 ---
