@@ -23,5 +23,10 @@
     "extensions": ["./plugin.ts"],
     "channels": ["dingtalk-ai"],
     "installDependencies": true
+  },
+  "openclaw": {
+    "extensions": ["./plugin.ts"],
+    "channels": ["dingtalk-ai"],
+    "installDependencies": true
   }
 }
