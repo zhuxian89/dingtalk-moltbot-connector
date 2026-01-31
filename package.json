@@ -1,5 +1,5 @@
 {
-  "name": "@clawdbot/dingtalk-connector",
+  "name": "@clawdbot/dingtalk-ai",
   "version": "0.3.1",
   "description": "DingTalk (钉钉) channel plugin for Moltbot — Stream mode with AI Card streaming",
   "main": "plugin.ts",
