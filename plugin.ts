@@ -853,11 +853,11 @@ const plugin = {
   register(api: ClawdbotPluginApi) {
     runtime = api.runtime;
     api.registerChannel({ plugin: dingtalkPlugin });
-    api.registerGatewayMethod('dingtalk.status', async ({ respond, cfg }: any) => {
+    api.registerGatewayMethod('dingtalk-ai.status', async ({ respond, cfg }: any) => {
       const result = await dingtalkPlugin.status.probe({ cfg });
       respond(true, result);
     });
-    api.registerGatewayMethod('dingtalk.probe', async ({ respond, cfg }: any) => {
+    api.registerGatewayMethod('dingtalk-ai.probe', async ({ respond, cfg }: any) => {
       const result = await dingtalkPlugin.status.probe({ cfg });
       respond(result.ok, result);
     });
