@@ -842,7 +842,7 @@ const dingtalkPlugin = {
 // ============ 插件注册 ============
 
 const plugin = {
-  id: 'dingtalk-connector',
+  id: 'dingtalk-ai',
   name: 'DingTalk Channel',
   description: 'DingTalk (钉钉) messaging channel via Stream mode with AI Card streaming',
   configSchema: {
